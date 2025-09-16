@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kuis Interaktif: Java Collection Framework</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Slate & Sky -->
+    <!-- Application Structure Plan: Aplikasi ini dirancang sebagai SPA (Single-Page Application) dengan alur "satu pertanyaan per halaman" untuk menjaga fokus pengguna. Struktur ini terdiri dari tiga bagian utama: (1) Tampilan Kuis, yang menampilkan pertanyaan, pilihan jawaban, dan navigasi; (2) Tampilan Hasil, yang muncul setelah kuis selesai, menampilkan skor total, visualisasi data dengan Chart.js, dan tombol aksi; (3) Bagian Tinjauan Jawaban, yang merinci setiap jawaban pengguna beserta kunci jawaban yang benar. Struktur ini dipilih karena intuitif, mengurangi kebingungan, dan memberikan umpan balik langsung yang konstruktif untuk pembelajaran. -->
+    <!-- Visualization & Content Choices: Data kuis (pertanyaan, pilihan, jawaban) disimpan dalam array JavaScript. Interaksi kuis (memilih jawaban, navigasi) dikelola dengan Vanilla JS yang memanipulasi DOM. Tujuannya adalah untuk menguji pengetahuan. Hasil skor disajikan dengan statistik angka dan diagram donat dari Chart.js untuk visualisasi proporsi jawaban benar/salah secara cepat dan menarik. Tinjauan jawaban menggunakan daftar terstruktur dengan pewarnaan latar belakang (hijau/merah) untuk memberikan umpan balik yang jelas dan mudah dipahami. Pilihan ini mendukung tujuan pembelajaran dengan memberikan analisis performa yang komprehensif. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .option-card {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, border-color 0.2s ease-in-out;
+        }
+
+        .option-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+
+        .option-card.selected {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 250px;
+            height: 250px;
+            margin: auto;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-100 text-slate-800 flex items-center justify-center min-h-screen p-4">
+
+    <div id="quiz-container" class="w-full max-w-3xl bg-white p-6 sm:p-8 rounded-2xl shadow-lg">
+        <header class="mb-6">
+            <div class="flex justify-between items-center mb-2">
+                <h1 class="text-xl sm:text-2xl font-bold text-slate-700">Kuis: Java Collection Framework</h1>
+                <p id="progress-text" class="text-sm font-medium text-slate-500"></p>
+            </div>
+            <div class="w-full bg-slate-200 rounded-full h-2.5">
+                <div id="progress-bar" class="bg-sky-500 h-2.5 rounded-full transition-all duration-300"></div>
+            </div>
+        </header>
+
+        <main>
+            <h2 id="question-text" class="text-lg font-semibold mb-6 min-h-[56px]"></h2>
+            <div id="options-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            </div>
+        </main>
+
+        <footer class="mt-8 pt-6 border-t border-slate-200 flex justify-between items-center">
+            <button id="prev-btn"
+                class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 px-4 rounded-lg transition-colors">Sebelumnya</button>
+            <button id="next-btn"
+                class="bg-sky-500 hover:bg-sky-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">Selanjutnya</button>
+            <button id="submit-btn"
+                class="hidden bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">Selesai
+                & Lihat Hasil</button>
+        </footer>
+    </div>
+
+    <div id="results-container" class="hidden w-full max-w-3xl bg-white p-6 sm:p-8 rounded-2xl shadow-lg text-center">
+        <h1 class="text-2xl sm:text-3xl font-bold text-slate-700 mb-2">Hasil Kuis Anda</h1>
+        <p class="text-slate-500 mb-6">Berikut adalah ringkasan performa Anda.</p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+            <div class="chart-container">
+                <canvas id="results-chart"></canvas>
+            </div>
+            <div>
+                <p class="text-5xl font-bold text-sky-500" id="score-percentage"></p>
+                <p class="text-slate-600 font-medium mt-1">Skor Akhir</p>
+                <div class="mt-4 flex justify-center gap-4 text-left">
+                    <div class="p-4 bg-green-100 rounded-lg w-1/2">
+                        <p class="text-2xl font-bold text-green-700" id="correct-answers-count"></p>
+                        <p class="text-sm font-medium text-green-600">Jawaban Benar</p>
+                    </div>
+                    <div class="p-4 bg-red-100 rounded-lg w-1/2">
+                        <p class="text-2xl font-bold text-red-700" id="wrong-answers-count"></p>
+                        <p class="text-sm font-medium text-red-600">Jawaban Salah</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="review-section" class="mt-8 pt-6 border-t border-slate-200">
+            <h2 class="text-xl font-bold text-slate-700 mb-4 text-left">Tinjau Jawaban</h2>
+            <div id="review-container" class="space-y-4 text-left"></div>
+        </div>
+
+        <footer class="mt-8 pt-6 border-t border-slate-200">
+            <button id="retake-btn"
+                class="bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 px-6 rounded-lg transition-colors w-full sm:w-auto">Ulangi
+                Kuis</button>
+        </footer>
+    </div>
+
+    <script>
+        const quizData = [
+            { question: "Apa keuntungan utama menggunakan Collection dibandingkan Array di Java?", options: ["Collection memiliki performa yang selalu lebih cepat.", "Collection hanya bisa menyimpan tipe data primitif.", "Ukuran Collection bersifat dinamis (bisa bertambah atau berkurang).", "Array memiliki lebih banyak metode bawaan untuk manipulasi data."], correct: "C" },
+            { question: "Manakah di bawah ini yang merupakan karakteristik utama dari List?", options: ["Elemen harus unik dan tidak terurut.", "Elemen disimpan dalam format key-value.", "Elemen terurut berdasarkan indeks dan boleh duplikat.", "Elemen tidak boleh duplikat dan terurut secara alami."], correct: "C" },
+            { question: "Implementasi List manakah yang paling efisien untuk mengakses data secara acak menggunakan indeks (get(index))?", options: ["ArrayList", "LinkedList", "Vector", "HashSet"], correct: "A" },
+            { question: "Jika kode namaSiswa.add(\"Budi\"); dijalankan dua kali pada ArrayList yang sama, apa yang akan terjadi?", options: ["Hanya satu \"Budi\" yang akan tersimpan.", "Akan terjadi error karena duplikasi data.", "\"Budi\" yang kedua akan menimpa yang pertama.", "ArrayList akan berisi dua elemen \"Budi\"."], correct: "D" },
+            { question: "Apa ciri khas dari sebuah Set?", options: ["Menyimpan data berdasarkan urutan penambahan.", "Hanya menyimpan elemen yang unik (tidak ada duplikat).", "Setiap elemen memiliki indeks numerik.", "Menyimpan data dalam pasangan key-value."], correct: "B" },
+            { question: "Apa yang dikembalikan oleh metode add() pada HashSet jika kita mencoba menambahkan elemen yang sudah ada di dalamnya?", options: ["true", "false", "null", "Exception"], correct: "B" },
+            { question: "Manakah implementasi Set yang menyimpan elemen secara terurut (natural order)?", options: ["HashSet", "LinkedHashSet", "TreeSet", "ArrayList"], correct: "C" },
+            { question: "Bagaimana cara Map menyimpan datanya?", options: ["Sebagai daftar elemen yang terurut.", "Sebagai kumpulan elemen unik.", "Sebagai pasangan kunci-nilai (key-value pair).", "Sebagai struktur data LIFO (Last-In, First-Out)."], correct: "C" },
+            { question: "Pada sebuah Map, manakah yang harus bersifat unik?", options: ["Value (Nilai)", "Key (Kunci)", "Key dan Value harus unik sebagai pasangan.", "Tidak ada yang harus unik."], correct: "B" },
+            { question: "Apa yang terjadi jika kita menggunakan metode put() pada HashMap dengan key yang sudah ada?", options: ["Operasi akan gagal dan mengembalikan false.", "Value yang lama akan ditimpa dengan value yang baru.", "Akan ada dua key yang sama dengan value yang berbeda.", "Akan terjadi DuplicateKeyException."], correct: "B" },
+            { question: "Metode apa yang digunakan untuk mengambil value dari Map jika kita mengetahui key-nya?", options: ["fetch(key)", "find(key)", "get(key)", "retrieve(key)"], correct: "C" },
+            { question: "Manakah dari berikut ini yang BUKAN merupakan implementasi dari interface Map?", options: ["HashMap", "TreeMap", "Vector", "LinkedHashMap"], correct: "C" },
+            { question: "Collections.sort() dapat digunakan untuk mengurutkan objek dari kelas...", options: ["Map", "Set", "List", "Semua jenis Collection"], correct: "C" },
+            { question: "Apa syarat utama yang harus dipenuhi sebelum menggunakan Collections.binarySearch() pada sebuah List?", options: ["List tidak boleh mengandung elemen duplikat.", "List harus berupa LinkedList.", "List harus sudah dalam keadaan terurut.", "List tidak boleh kosong."], correct: "C" },
+            { question: "Jika Collections.binarySearch() berhasil menemukan elemen yang dicari, apa nilai yang dikembalikannya?", options: ["true", "0", "Indeks dari elemen tersebut.", "Objek elemen yang ditemukan."], correct: "C" },
+            { question: "Dari contoh kode ManajemenToko, mengapa usernames.add(\"user1\") yang kedua kali tidak mengubah isi dari Set?", options: ["Karena Set sudah penuh.", "Karena \"user1\" sudah ada, dan Set tidak memperbolehkan duplikat.", "Karena metode add() gagal secara acak.", "Karena tipe datanya String."], correct: "B" },
+            { question: "Diberikan List berisi [10, 50, 5, 25]. Setelah Collections.sort() dijalankan, bagaimana urutan List tersebut?", options: ["[10, 50, 5, 25] (tidak berubah)", "[50, 25, 10, 5]", "[5, 10, 25, 50]", "Terjadi error."], correct: "C" },
+            { question: "Kapan sebaiknya kita memilih LinkedList daripada ArrayList?", options: ["Saat membutuhkan akses data acak yang sangat cepat.", "Saat sering melakukan operasi penambahan atau penghapusan data di tengah koleksi.", "Saat ingin data tersimpan secara terurut otomatis.", "Saat ingin memastikan tidak ada data duplikat."], correct: "B" },
+            { question: "Dari contoh DataMahasiswa, apa value yang berpasangan dengan key 102?", options: ["Andi", "Beni", "Cindy", "Andi Saputra"], correct: "B" },
+            { question: "Manakah pernyataan yang paling tepat mengenai Collection Framework?", options: ["Sebuah kelas tunggal untuk menyimpan semua jenis data.", "Hanya berisi algoritma untuk pengurutan data.", "Sebuah arsitektur yang menyediakan interface, implementasi, dan algoritma untuk mengelola grup objek.", "Sebuah pengganti permanen untuk tipe data Array."], correct: "C" },
+        ];
+
+        const optionLabels = ['A', 'B', 'C', 'D'];
+        let currentQuestionIndex = 0;
+        let userAnswers = new Array(quizData.length).fill(null);
+        let chartInstance = null;
+
+        const quizContainer = document.getElementById('quiz-container');
+        const resultsContainer = document.getElementById('results-container');
+        const questionText = document.getElementById('question-text');
+        const optionsContainer = document.getElementById('options-container');
+        const progressText = document.getElementById('progress-text');
+        const progressBar = document.getElementById('progress-bar');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const submitBtn = document.getElementById('submit-btn');
+        const retakeBtn = document.getElementById('retake-btn');
+
+        function loadQuestion() {
+            const currentQuestion = quizData[currentQuestionIndex];
+            questionText.textContent = `${currentQuestionIndex + 1}. ${currentQuestion.question}`;
+            optionsContainer.innerHTML = '';
+
+            currentQuestion.options.forEach((option, index) => {
+                const optionKey = optionLabels[index];
+                const isSelected = userAnswers[currentQuestionIndex] === optionKey;
+
+                const optionElement = document.createElement('div');
+                optionElement.className = `option-card p-4 border-2 rounded-lg cursor-pointer flex items-start gap-4 ${isSelected ? 'selected' : 'border-slate-200'}`;
+                optionElement.dataset.option = optionKey;
+                optionElement.innerHTML = `
+                <div class="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center font-bold text-sm ${isSelected ? 'bg-blue-500 text-white' : 'bg-slate-200 text-slate-600'}">
+                    ${optionKey}
+                </div>
+                <p class="flex-1">${option}</p>
+            `;
+                optionElement.addEventListener('click', () => selectAnswer(optionKey));
+                optionsContainer.appendChild(optionElement);
+            });
+
+            updateProgress();
+            updateNavigation();
+        }
+
+        function selectAnswer(optionKey) {
+            userAnswers[currentQuestionIndex] = optionKey;
+            loadQuestion();
+        }
+
+        function updateProgress() {
+            progressText.textContent = `Soal ${currentQuestionIndex + 1} dari ${quizData.length}`;
+            const percentage = ((currentQuestionIndex + 1) / quizData.length) * 100;
+            progressBar.style.width = `${percentage}%`;
+        }
+
+        function updateNavigation() {
+            prevBtn.disabled = currentQuestionIndex === 0;
+            prevBtn.classList.toggle('opacity-50', currentQuestionIndex === 0);
+
+            if (currentQuestionIndex === quizData.length - 1) {
+                nextBtn.classList.add('hidden');
+                submitBtn.classList.remove('hidden');
+            } else {
+                nextBtn.classList.remove('hidden');
+                submitBtn.classList.add('hidden');
+            }
+        }
+
+        function showResults() {
+            quizContainer.classList.add('hidden');
+            resultsContainer.classList.remove('hidden');
+
+            let correctAnswers = 0;
+            quizData.forEach((question, index) => {
+                if (userAnswers[index] === question.correct) {
+                    correctAnswers++;
+                }
+            });
+
+            const score = (correctAnswers / quizData.length) * 100;
+            const wrongAnswers = quizData.length - correctAnswers;
+
+            document.getElementById('score-percentage').textContent = `${score.toFixed(0)}%`;
+            document.getElementById('correct-answers-count').textContent = correctAnswers;
+            document.getElementById('wrong-answers-count').textContent = wrongAnswers;
+
+            renderResultsChart(correctAnswers, wrongAnswers);
+            renderReview();
+        }
+
+        function renderResultsChart(correct, wrong) {
+            const ctx = document.getElementById('results-chart').getContext('2d');
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+            chartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Benar', 'Salah'],
+                    datasets: [{
+                        data: [correct, wrong],
+                        backgroundColor: ['#10b981', '#ef4444'],
+                        borderColor: ['#ffffff'],
+                        borderWidth: 4,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: true }
+                    }
+                }
+            });
+        }
+
+        function renderReview() {
+            const reviewContainer = document.getElementById('review-container');
+            reviewContainer.innerHTML = '';
+
+            quizData.forEach((question, index) => {
+                const userAnswer = userAnswers[index];
+                const correctAnswer = question.correct;
+                const isCorrect = userAnswer === correctAnswer;
+
+                const reviewCard = document.createElement('div');
+                reviewCard.className = `p-4 rounded-lg border ${isCorrect ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`;
+
+                const correctAnswerText = question.options[optionLabels.indexOf(correctAnswer)];
+                const userAnswerText = userAnswer ? question.options[optionLabels.indexOf(userAnswer)] : 'Tidak dijawab';
+
+                reviewCard.innerHTML = `
+                <p class="font-semibold text-slate-800">${index + 1}. ${question.question}</p>
+                <div class="mt-3 text-sm">
+                    <p class="text-slate-600">Jawaban Anda: <span class="${isCorrect ? 'text-green-700 font-bold' : 'text-red-700 font-bold'}">${userAnswer ? `${userAnswer}. ${userAnswerText}` : 'Tidak dijawab'
+                    }</span ></p >
+            ${!isCorrect ? `<p class="text-slate-600">Jawaban Benar: <span class="text-green-700 font-bold">${correctAnswer}. ${correctAnswerText}</span></p> ` : ''}
+                </div >
+            `;
+                reviewContainer.appendChild(reviewCard);
+            });
+        }
+
+        function resetQuiz() {
+            currentQuestionIndex = 0;
+            userAnswers.fill(null);
+            resultsContainer.classList.add('hidden');
+            quizContainer.classList.remove('hidden');
+            loadQuestion();
+        }
+
+        prevBtn.addEventListener('click', () => {
+            if (currentQuestionIndex > 0) {
+                currentQuestionIndex--;
+                loadQuestion();
+            }
+        });
+
+        nextBtn.addEventListener('click', () => {
+            if (currentQuestionIndex < quizData.length - 1) {
+                currentQuestionIndex++;
+                loadQuestion();
+            }
+        });
+
+        submitBtn.addEventListener('click', showResults);
+        retakeBtn.addEventListener('click', resetQuiz);
+
+        loadQuestion();
+    </script>
+</body>
+
+</html>
