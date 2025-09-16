@@ -1,4 +1,4 @@
-const ProgressBar = ({ id }) => {
+const ProgressBar = ({ children, id }) => {
   const { quizData, currentQuestionIndex } = useGLobalContext();
   const progressPercentage =
     ((currentQuestionIndex + 1) / quizData?.length) * 100;
